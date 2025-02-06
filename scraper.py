@@ -19,6 +19,22 @@ word_counter = Counter()
 # Dictionary to keep track of subdomains and their unique page counts
 subdomains = {}
 
+# Dictionary to keep track of page hashes to detect exact duplicates
+page_hashes = {}
+
+# Function to compute shingles of a given text
+def compute_shingles(text, k=5):
+    words = text.split()
+    shingles = set()
+    for i in range(len(words) - k + 1):
+        shingle = ' '.join(words[i:i + k])
+        shingles.add(shingle)
+    return shingles
+
+# Function to compute a simple hash of a set of shingles
+def hash_shingles(shingles):
+    return hash(frozenset(shingles))
+
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
@@ -47,7 +63,14 @@ def extract_next_links(url, resp):
     filtered_words = [word.lower() for word in words if word.lower() not in stop_words]
     word_counter.update(filtered_words)
     
-
+    # Compute shingles and hash for the current page
+    shingles = compute_shingles(text)
+    page_hash = hash_shingles(shingles)
+    
+    # Check for exact duplicates
+    if page_hash in page_hashes:
+        return []
+    page_hashes[page_hash] = url
     
     global longest_page
     if word_count > longest_page['word_count']:

@@ -1,9 +1,20 @@
 import re
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
+from collections import Counter
+from stopwords import stop_words
 
 # Set to keep track of visited URLs to detect traps
 visited_urls = set()
+
+# Variable to keep track of the longest page
+longest_page = {
+    'url': '',
+    'word_count': 0
+}
+
+# Counter to keep track of word frequencies
+word_counter = Counter()
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -23,6 +34,23 @@ def extract_next_links(url, resp):
         return []
     
     soup = BeautifulSoup(resp.raw_response.content, 'lxml')
+    text = soup.get_text()
+    words = re.findall(r'\w+', text)
+    word_count = len(words)
+    
+    # Filter out stop words
+    filtered_words = [word.lower() for word in words if word.lower() not in stop_words]
+    word_counter.update(filtered_words)
+    
+
+    
+    global longest_page
+    if word_count > longest_page['word_count']:
+        longest_page = {
+            'url': url,
+            'word_count': word_count
+        }
+    
     links = []
     for a_tag in soup.find_all('a', href=True):
         href = a_tag['href']
@@ -62,3 +90,9 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+def get_top_50_words():
+    return word_counter.most_common(50)
+
+def get_longest_page():
+    return longest_page

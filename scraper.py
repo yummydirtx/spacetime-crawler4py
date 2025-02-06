@@ -1,5 +1,9 @@
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
+from bs4 import BeautifulSoup
+
+# Set to keep track of visited URLs to detect traps
+visited_urls = set()
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -15,15 +19,35 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    return list()
+    if resp.status != 200:
+        return []
+    
+    soup = BeautifulSoup(resp.raw_response.content, 'lxml')
+    links = []
+    for a_tag in soup.find_all('a', href=True):
+        href = a_tag['href']
+        full_url = urljoin(url, href)
+        parsed_url = urlparse(full_url)
+        defragmented_url = parsed_url._replace(fragment='').geturl()
+        
+        # Check for infinite traps by detecting repeated URL patterns
+        if defragmented_url in visited_urls:
+            continue
+        visited_urls.add(defragmented_url)
+        
+        links.append(defragmented_url)
+    
+    return links
 
 def is_valid(url):
-    # Decide whether to crawl this url or not. 
+    # Decide whether to crawl this URL or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
+            return False
+        if not re.match(r".*\.(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu)", parsed.netloc):
             return False
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"

@@ -16,6 +16,9 @@ longest_page = {
 # Counter to keep track of word frequencies
 word_counter = Counter()
 
+# Dictionary to keep track of subdomains and their unique page counts
+subdomains = {}
+
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
@@ -63,6 +66,13 @@ def extract_next_links(url, resp):
             continue
         visited_urls.add(defragmented_url)
         
+        # Track subdomains
+        if 'ics.uci.edu' in parsed_url.netloc:
+            subdomain = parsed_url.scheme + '://' + parsed_url.netloc
+            if subdomain not in subdomains:
+                subdomains[subdomain] = set()
+            subdomains[subdomain].add(defragmented_url)
+        
         links.append(defragmented_url)
     
     return links
@@ -94,5 +104,10 @@ def is_valid(url):
 def get_top_50_words():
     return word_counter.most_common(50)
 
-def get_longest_page():
-    return longest_page
+def get_unique_pages_count():
+    return len(visited_urls)
+
+def get_subdomains_info():
+    subdomain_info = {subdomain: len(pages) for subdomain, pages in subdomains.items()}
+    sorted_subdomain_info = dict(sorted(subdomain_info.items()))
+    return sorted_subdomain_info

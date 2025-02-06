@@ -21,6 +21,15 @@ class Worker(Thread):
         while True:
             tbd_url = self.frontier.get_tbd_url()
             if not tbd_url:
+                with open('report.txt', 'a') as f:
+                    f.write(f"Total pages: {len(scraper.get_unique_pages_count())}\n")
+                    f.write(f"Longest page: {scraper.longest_page['url']} with {scraper.longest_page['word_count']} words\n")
+                    f.write("Top 50 words:\n")
+                    for word, count in scraper.get_top_50_words():
+                        f.write(f"{word}: {count}\n")
+                    f.write("Subdomains in ics.uci.edu:\n")
+                    for subdomain, count in scraper.get_subdomains():
+                        f.write(f"{subdomain}: {count}\n")
                 self.logger.info("Frontier is empty. Stopping Crawler.")
                 break
             resp = download(tbd_url, self.config, self.logger)

@@ -33,7 +33,9 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    if resp.status != 200:
+
+    # Check if the response is valid
+    if resp.status != 200 or not resp.raw_response.content.strip():
         return []
     
     soup = BeautifulSoup(resp.raw_response.content, 'lxml')
@@ -54,6 +56,15 @@ def extract_next_links(url, resp):
             'word_count': word_count
         }
     
+    def is_trap_url(url):
+        parsed_url = urlparse(url)
+        query_params = parsed_url.query.split('&')
+        if len(query_params) > 2:  # Arbitrary threshold for query parameters
+            return True
+        if re.search(r'(do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|revisions|export_code|media|upload)', url, re.IGNORECASE):
+            return True
+        return False
+
     links = []
     for a_tag in soup.find_all('a', href=True):
         href = a_tag['href']
@@ -62,7 +73,7 @@ def extract_next_links(url, resp):
         defragmented_url = parsed_url._replace(fragment='').geturl()
         
         # Check for infinite traps by detecting repeated URL patterns
-        if defragmented_url in visited_urls:
+        if defragmented_url in visited_urls or is_trap_url(defragmented_url):
             continue
         visited_urls.add(defragmented_url)
         
@@ -87,13 +98,14 @@ def is_valid(url):
             return False
         if not re.match(r".*\.(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu)", parsed.netloc):
             return False
+        #print(parsed)
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
-            + r"|epub|dll|cnf|tgz|sha1"
+            + r"|epub|dll|cnf|tgz|sha1|war|img|apk|mpg"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 

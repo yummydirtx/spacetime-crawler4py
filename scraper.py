@@ -59,6 +59,10 @@ def extract_next_links(url, resp):
     words = re.findall(r'\w+', text)
     word_count = len(words)
     
+    # Filter out pages with very little textual content
+    if word_count < 50:  # Arbitrary threshold for minimum word count
+        return []
+    
     # Filter out stop words
     filtered_words = [word.lower() for word in words if word.lower() not in stop_words]
     word_counter.update(filtered_words)
@@ -85,6 +89,9 @@ def extract_next_links(url, resp):
         if len(query_params) > 2:  # Arbitrary threshold for query parameters
             return True
         if re.search(r'(do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|revisions|export_code|media|upload)', url, re.IGNORECASE):
+            return True
+        # Check for date patterns in the URL
+        if re.search(r'/\d{4}/\d{2}/\d{2}/', url):
             return True
         return False
 

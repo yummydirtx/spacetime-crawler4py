@@ -88,10 +88,16 @@ def extract_next_links(url, resp):
         query_params = parsed_url.query.split('&')
         if len(query_params) > 2:  # Arbitrary threshold for query parameters
             return True
-        if re.search(r'(do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|revisions|export_code|media|upload)', url, re.IGNORECASE):
+        if re.search(r'(do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|revisions|export_code|media|upload|search=)', url, re.IGNORECASE):
             return True
         # Check for date patterns in the URL
-        if re.search(r'/\d{4}/\d{2}/\d{2}/', url):
+        if re.search(r'\d{4}/\d{2}/\d{2}', url):
+            return True
+        # Check for day-by-day patterns in the URL
+        if re.search(r'\d{4}-\d{2}-\d{2}', url):
+            return True
+        # Check for month-by-month patterns in the URL
+        if re.search(r'\d{4}-\d{2}', url):
             return True
         return False
 
@@ -137,6 +143,8 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1|war|img|apk|mpg"
             + r"|thmx|mso|arff|rtf|jar|csv"
+            + r"|rmvb|flv|txt|key|odp|ods|odt|pps|ppsx|pptx"
+            + r"|xlk|xlsb|xlsm|xlsx|xlt|xltx|xltm|xlw"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
     except TypeError:

@@ -22,6 +22,14 @@ subdomains = {}
 # Dictionary to keep track of page hashes to detect exact duplicates
 page_hashes = {}
 
+def load_visited_urls():
+    try:
+        with open('visited_urls.txt', 'r') as f:
+            for line in f:
+                visited_urls.add(line.strip())
+    except FileNotFoundError:
+        pass
+
 # Function to compute shingles of a given text
 def compute_shingles(text, k=5):
     words = text.split()
@@ -112,6 +120,8 @@ def extract_next_links(url, resp):
         if defragmented_url in visited_urls or is_trap_url(defragmented_url):
             continue
         visited_urls.add(defragmented_url)
+        with open('visited_urls.txt', 'a') as f:
+            f.write(defragmented_url + '\n')
         
         # Track subdomains
         if 'ics.uci.edu' in parsed_url.netloc:

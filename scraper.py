@@ -3,6 +3,7 @@ from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 from collections import Counter
 from stopwords import stop_words
+import json
 
 # Set to keep track of visited URLs to detect traps
 visited_urls = set()
@@ -45,7 +46,7 @@ def hash_shingles(shingles):
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
-    return [link for link in links if is_valid(link)]
+    return [link for link in links]
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -69,6 +70,7 @@ def extract_next_links(url, resp):
     
     # Filter out pages with very little textual content
     if word_count < 50:  # Arbitrary threshold for minimum word count
+        print(f"Page with little content: {url}")
         return []
     
     # Filter out stop words
@@ -81,6 +83,7 @@ def extract_next_links(url, resp):
     
     # Check for exact duplicates
     if page_hash in page_hashes:
+        print(f"Duplicate page: {url}")
         return []
     page_hashes[page_hash] = url
     
@@ -117,7 +120,7 @@ def extract_next_links(url, resp):
         defragmented_url = parsed_url._replace(fragment='').geturl()
         
         # Check for infinite traps by detecting repeated URL patterns
-        if defragmented_url in visited_urls or is_trap_url(defragmented_url):
+        if defragmented_url in visited_urls or is_trap_url(defragmented_url) or not is_valid(defragmented_url):
             continue
         visited_urls.add(defragmented_url)
         with open('visited_urls.txt', 'a') as f:
@@ -152,7 +155,9 @@ def is_valid(url):
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1|war|img|apk|mpg"
-            + r"|thmx|mso|arff|rtf|jar|csv"
+            + r"|thmx|mso|arff|rtf|jar|csv|java|h|c|cpp|py|sh|php"
+            + r"|html|htm|xml|json|yaml|yml|txt|log|cfg|ini|md"
+            + r"|gitignore|gitattributes|gitmodules|gitkeep|git|gitconfig"
             + r"|rmvb|flv|txt|key|odp|ods|odt|pps|ppsx|pptx"
             + r"|xlk|xlsb|xlsm|xlsx|xlt|xltx|xltm|xlw"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
@@ -162,7 +167,17 @@ def is_valid(url):
         raise
 
 def get_top_50_words():
+    # Save the entire Counter to a file in JSON format
+    with open('word_frequencies.txt', 'w') as f:
+        json.dump(dict(word_counter), f)
     return word_counter.most_common(50)
+
+def load_word_frequencies():
+    try:
+        with open('word_frequencies.txt', 'r') as f:
+            word_counter.update(json.load(f))
+    except FileNotFoundError:
+        pass
 
 def get_unique_pages_count():
     return len(visited_urls)

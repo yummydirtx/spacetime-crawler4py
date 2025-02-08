@@ -17,17 +17,68 @@ longest_page = {
 # Counter to keep track of word frequencies
 word_counter = Counter()
 
-# Dictionary to keep track of subdomains and their unique page counts
-subdomains = {}
+# Counter to keep track of subdomains and their unique page counts
+subdomains = Counter()
 
 # Dictionary to keep track of page hashes to detect exact duplicates
 page_hashes = {}
+
+def save_all():
+    save_longest_page()
+    save_subdomains()
+    save_page_hashes()
+    save_word_frequencies()
+
+def load_all():
+    load_longest_page()
+    load_subdomains()
+    load_page_hashes()
+    load_visited_urls()
+    load_word_frequencies()
+
+def save_word_frequencies():
+    # Save the entire Counter to a file in JSON format
+    with open('word_frequencies.txt', 'w') as f:
+        json.dump(dict(word_counter), f)
+
+def save_longest_page():
+    with open('longest_page.txt', 'w') as f:
+        json.dump(longest_page, f)
+
+def load_longest_page():
+    try:
+        with open('longest_page.txt', 'r') as f:
+            longest_page.update(json.load(f))
+    except FileNotFoundError:
+        pass
+
+def save_subdomains():
+    with open('subdomains.txt', 'w') as f:
+        json.dump(dict(subdomains), f)
+
+def load_subdomains():
+    try:
+        with open('subdomains.txt', 'r') as f:
+            subdomains.update(Counter(json.load(f)))
+    except FileNotFoundError:
+        pass
+
+def save_page_hashes():
+    with open('page_hashes.txt', 'w') as f:
+        json.dump(page_hashes, f)
+
+def load_page_hashes():
+    try:
+        with open('page_hashes.txt', 'r') as f:
+            page_hashes.update(json.load(f))
+    except FileNotFoundError:
+        pass
 
 def load_visited_urls():
     try:
         with open('visited_urls.txt', 'r') as f:
             for line in f:
-                visited_urls.add(line.strip())
+                visited_urls.add(json.loads(line))
     except FileNotFoundError:
         pass
 
@@ -124,14 +175,12 @@ def extract_next_links(url, resp):
             continue
         visited_urls.add(defragmented_url)
         with open('visited_urls.txt', 'a') as f:
-            f.write(defragmented_url + '\n')
+            json.dump(defragmented_url, f)
         
         # Track subdomains
         if 'ics.uci.edu' in parsed_url.netloc:
             subdomain = parsed_url.scheme + '://' + parsed_url.netloc
-            if subdomain not in subdomains:
-                subdomains[subdomain] = set()
-            subdomains[subdomain].add(defragmented_url)
+            subdomains[subdomain] += 1
         
         links.append(defragmented_url)
     
@@ -167,9 +216,6 @@ def is_valid(url):
         raise
 
 def get_top_50_words():
-    # Save the entire Counter to a file in JSON format
-    with open('word_frequencies.txt', 'w') as f:
-        json.dump(dict(word_counter), f)
     return word_counter.most_common(50)
 
 def load_word_frequencies():
@@ -183,6 +229,5 @@ def get_unique_pages_count():
     return len(visited_urls)
 
 def get_subdomains_info():
-    subdomain_info = {subdomain: len(pages) for subdomain, pages in subdomains.items()}
-    sorted_subdomain_info = dict(sorted(subdomain_info.items()))
+    sorted_subdomain_info = dict(sorted(subdomains.items()))
     return sorted_subdomain_info

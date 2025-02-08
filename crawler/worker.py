@@ -15,28 +15,11 @@ class Worker(Thread):
         # basic check for requests in scraper
         assert {getsource(scraper).find(req) for req in {"from requests import", "import requests"}} == {-1}, "Do not use requests in scraper.py"
         assert {getsource(scraper).find(req) for req in {"from urllib.request import", "import urllib.request"}} == {-1}, "Do not use urllib.request in scraper.py"
-        try:
-            with open('report.txt', 'r') as f:
-                lines = f.readlines()
-                for line in lines:
-                    if 'Total pages:' in line:
-                        continue
-                    elif 'Longest page:' in line:
-                        parts = line.split()
-                        scraper.longest_page = {'url': parts[2], 'word_count': int(parts[-2])}
-                    elif ':' in line and 'words' not in line and 'Subdomains' not in line and 'Top 50' not in line:
-                        if 'ics.uci.edu' in line:
-                            subdomain, count = line.rsplit(':', 1)
-                            scraper.add_subdomain(subdomain.strip(), int(count))
-                        else:
-                            word, count = line.rsplit(':', 1)
-                            scraper.add_word(word.strip(), int(count))
-        except FileNotFoundError:
-            pass
-        scraper.load_visited_urls()
+        scraper.load_all()
         super().__init__(daemon=True)
 
     def dump_report(self):
+        scraper.save_all()
         with open('report.txt', 'a') as f:
             f.write(f"Total pages: {scraper.get_unique_pages_count()}\n")
             f.write(f"Longest page: {scraper.longest_page['url']} with {scraper.longest_page['word_count']} words\n")
@@ -44,7 +27,7 @@ class Worker(Thread):
             for word, count in scraper.get_top_50_words():
                 f.write(f"{word}: {count}\n")
             f.write("Subdomains in ics.uci.edu:\n")
-            for subdomain, count in scraper.get_subdomains_info():
+            for subdomain, count in scraper.get_subdomains_info().items():
                 f.write(f"{subdomain}: {count}\n")
         
     def run(self):
@@ -52,15 +35,7 @@ class Worker(Thread):
             while True:
                 tbd_url = self.frontier.get_tbd_url()
                 if not tbd_url:
-                    with open('report.txt', 'a') as f:
-                        f.write(f"Total pages: {scraper.get_unique_pages_count()}\n")
-                        f.write(f"Longest page: {scraper.longest_page['url']} with {scraper.longest_page['word_count']} words\n")
-                        f.write("Top 50 words:\n")
-                        for word, count in scraper.get_top_50_words():
-                            f.write(f"{word}: {count}\n")
-                        f.write("Subdomains in ics.uci.edu:\n")
-                        for subdomain, count in scraper.get_subdomains():
-                            f.write(f"{subdomain}: {count}\n")
+                    self.dump_report()
                     self.logger.info("Frontier is empty. Stopping Crawler.")
                     break
                 resp = download(tbd_url, self.config, self.logger)

@@ -111,3 +111,7 @@ venv.bak/
 nohup.out
 report.txt
 visited_urls.txt
+word_frequencies.txt
+subdomains.txt
+page_hashes.txt
+longest_page.txt

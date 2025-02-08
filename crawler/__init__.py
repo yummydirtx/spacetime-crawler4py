@@ -22,5 +22,10 @@ class Crawler(object):
         self.join()
 
     def join(self):
-        for worker in self.workers:
-            worker.join()
+        try:
+            for worker in self.workers:
+                worker.join()
+        except KeyboardInterrupt:
+            for worker in self.workers:
+                worker.dump_report()
+            raise KeyboardInterrupt;

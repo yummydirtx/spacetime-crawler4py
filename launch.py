@@ -19,6 +19,8 @@ def main(config_file, restart):
             os.remove("longest_page.txt")
         if os.path.exists("visited_urls.txt"):
             os.remove("visited_urls.txt")
+        if os.path.exists("word_frequencies.txt"):
+            os.remove("word_frequencies.txt")
     cparser = ConfigParser()
     cparser.read(config_file)
     config = Config(cparser)

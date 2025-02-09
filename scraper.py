@@ -21,7 +21,7 @@ word_counter = Counter()
 subdomains = Counter()
 
 # Dictionary to keep track of page hashes to detect exact duplicates
-page_hashes = {}
+page_hashes = set()
 
 def save_all():
     save_longest_page()
@@ -31,10 +31,15 @@ def save_all():
 
 def load_all():
     load_longest_page()
+    print("loaded longest page")
     load_subdomains()
+    print("loaded subdomains")
     load_page_hashes()
+    print("loaded page hashes")
     load_visited_urls()
+    print("loaded visited urls")
     load_word_frequencies()
+    print("loaded word frequencies")
 
 def save_word_frequencies():
     # Save the entire Counter to a file in JSON format
@@ -65,12 +70,12 @@ def load_subdomains():
 
 def save_page_hashes():
     with open('page_hashes.txt', 'w') as f:
-        json.dump(page_hashes, f)
+        json.dump(list(page_hashes), f)
 
 def load_page_hashes():
     try:
         with open('page_hashes.txt', 'r') as f:
-            page_hashes.update(json.load(f))
+            page_hashes.update(set(json.load(f)))
     except FileNotFoundError:
         pass
 
@@ -94,6 +99,35 @@ def compute_shingles(text, k=5):
 # Function to compute a simple hash of a set of shingles
 def hash_shingles(shingles):
     return hash(frozenset(shingles))
+
+def compute_similarity_hash(text, window_size=3):
+    """
+    Compute a more robust similarity hash using character-level k-grams
+    """
+    # Convert to lowercase and remove extra whitespace
+    text = ' '.join(text.lower().split())
+    
+    # Create character-level k-grams
+    k_grams = set()
+    for i in range(len(text) - window_size + 1):
+        k_grams.add(text[i:i + window_size])
+    
+    # Create a simple but effective hash
+    hash_value = 0
+    for gram in k_grams:
+        hash_value ^= hash(gram)
+    return hash_value
+
+# Replace the existing shingle-related code with:
+def are_pages_similar(text1_hash, text2_hash, threshold=0.8):
+    """
+    Compare two hash values using XOR distance
+    Lower values indicate more similarity
+    """
+    xor_distance = bin(text1_hash ^ text2_hash).count('1')
+    max_distance = 64  # Maximum bits in hash
+    similarity = 1 - (xor_distance / max_distance)
+    return similarity >= threshold
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -129,14 +163,14 @@ def extract_next_links(url, resp):
     word_counter.update(filtered_words)
     
     # Compute shingles and hash for the current page
-    shingles = compute_shingles(text)
-    page_hash = hash_shingles(shingles)
-    
-    # Check for exact duplicates
-    if page_hash in page_hashes:
-        print(f"Duplicate page: {url}")
-        return []
-    page_hashes[page_hash] = url
+    page_hash = compute_similarity_hash(text)
+
+    # Check for similar pages
+    for existing_hash in page_hashes:
+        if are_pages_similar(page_hash, existing_hash):
+            print(f"Similar page detected: {url}")
+            return []
+    page_hashes.add(page_hash)
     
     global longest_page
     if word_count > longest_page['word_count']:

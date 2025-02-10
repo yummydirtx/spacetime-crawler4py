@@ -25,6 +25,9 @@ subdomains = Counter()
 # Dictionary to keep track of page hashes to detect exact duplicates
 page_hashes = set()
 
+# Dictionary to keep track of exact page content hashes to detect exact duplicates
+exact_page_hashes = set()
+
 MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
 
 
@@ -33,6 +36,7 @@ def save_all():
     save_subdomains()
     save_page_hashes()
     save_word_frequencies()
+    save_exact_page_hashes()
     dump_report()
 
 
@@ -47,6 +51,7 @@ def load_all():
     print("loaded visited urls")
     load_word_frequencies()
     print("loaded word frequencies")
+    load_exact_page_hashes()
 
 
 def dump_report():
@@ -116,22 +121,6 @@ def load_visited_urls():
     except FileNotFoundError:
         pass
 
-
-# Function to compute shingles of a given text
-def compute_shingles(text, k=5):
-    words = text.split()
-    shingles = set()
-    for i in range(len(words) - k + 1):
-        shingle = " ".join(words[i : i + k])
-        shingles.add(shingle)
-    return shingles
-
-
-# Function to compute a simple hash of a set of shingles
-def hash_shingles(shingles):
-    return hash(frozenset(shingles))
-
-
 def compute_similarity_hash(text, window_size=3):
     """
     Compute a more robust similarity hash using character-level k-grams
@@ -149,7 +138,6 @@ def compute_similarity_hash(text, window_size=3):
     for gram in k_grams:
         hash_value ^= hash(gram)
     return hash_value
-
 
 # Replace the existing shingle-related code with:
 def are_pages_similar(text1_hash, text2_hash, threshold=0.8):
@@ -284,6 +272,13 @@ def extract_next_links(url, resp):
         return []
     word_counter.update(english_words)
 
+    # Check for exact duplicate using hash
+    text_hash = hash(text)
+    if text_hash in exact_page_hashes:
+        print(f"Exact duplicate page detected: {url}")
+        return []
+    exact_page_hashes.add(text_hash)
+
     page_hash = compute_similarity_hash(text)
     for existing_hash in page_hashes:
         if are_pages_similar(page_hash, existing_hash):
@@ -357,3 +352,15 @@ def get_unique_pages_count():
 def get_subdomains_info():
     sorted_subdomain_info = dict(sorted(subdomains.items()))
     return sorted_subdomain_info
+
+
+def save_exact_page_hashes():
+    with open("cache/exact_page_hashes.txt", "w") as f:
+        json.dump(list(exact_page_hashes), f)
+
+def load_exact_page_hashes():
+    try:
+        with open("cache/exact_page_hashes.txt", "r") as f:
+            exact_page_hashes.update(set(json.load(f)))
+    except FileNotFoundError:
+        pass

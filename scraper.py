@@ -60,45 +60,45 @@ def dump_report():
 
 def save_word_frequencies():
     # Save the entire Counter to a file in JSON format
-    with open('word_frequencies.txt', 'w') as f:
+    with open('cache/word_frequencies.txt', 'w') as f:
         json.dump(dict(word_counter), f)
 
 def save_longest_page():
-    with open('longest_page.txt', 'w') as f:
+    with open('cache/longest_page.txt', 'w') as f:
         json.dump(longest_page, f)
 
 def load_longest_page():
     try:
-        with open('longest_page.txt', 'r') as f:
+        with open('cache/longest_page.txt', 'r') as f:
             longest_page.update(json.load(f))
     except FileNotFoundError:
         pass
 
 def save_subdomains():
-    with open('subdomains.txt', 'w') as f:
+    with open('cache/subdomains.txt', 'w') as f:
         json.dump(dict(subdomains), f)
 
 def load_subdomains():
     try:
-        with open('subdomains.txt', 'r') as f:
+        with open('cache/subdomains.txt', 'r') as f:
             subdomains.update(Counter(json.load(f)))
     except FileNotFoundError:
         pass
 
 def save_page_hashes():
-    with open('page_hashes.txt', 'w') as f:
+    with open('cache/page_hashes.txt', 'w') as f:
         json.dump(list(page_hashes), f)
 
 def load_page_hashes():
     try:
-        with open('page_hashes.txt', 'r') as f:
+        with open('cache/page_hashes.txt', 'r') as f:
             page_hashes.update(set(json.load(f)))
     except FileNotFoundError:
         pass
 
 def load_visited_urls():
     try:
-        with open('visited_urls.txt', 'r') as f:
+        with open('cache/visited_urls.txt', 'r') as f:
             for line in f:
                 visited_urls.add(json.loads(line))
     except FileNotFoundError:
@@ -229,7 +229,7 @@ def extract_next_links(url, resp):
         if defragmented_url in visited_urls or is_trap_url(defragmented_url) or not is_valid(defragmented_url):
             continue
         visited_urls.add(defragmented_url)
-        with open('visited_urls.txt', 'a') as f:
+        with open('cache/visited_urls.txt', 'a') as f:
             f.write(json.dumps(defragmented_url) + '\n')
         
         # Track subdomains
@@ -276,7 +276,7 @@ def get_top_50_words():
 
 def load_word_frequencies():
     try:
-        with open('word_frequencies.txt', 'r') as f:
+        with open('cache/word_frequencies.txt', 'r') as f:
             word_counter.update(json.load(f))
     except FileNotFoundError:
         pass

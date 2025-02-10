@@ -12,16 +12,16 @@ def main(config_file, restart):
     if restart:
         if os.path.exists("report.txt"):
             os.remove("report.txt")
-        if os.path.exists("page_hashes.txt"):
-            os.remove("page_hashes.txt")
-        if os.path.exists("subdomains.txt"):
-            os.remove("subdomains.txt")
-        if os.path.exists("longest_page.txt"):
-            os.remove("longest_page.txt")
-        if os.path.exists("visited_urls.txt"):
-            os.remove("visited_urls.txt")
-        if os.path.exists("word_frequencies.txt"):
-            os.remove("word_frequencies.txt")
+        if os.path.exists("cache/page_hashes.txt"):
+            os.remove("cache/page_hashes.txt")
+        if os.path.exists("cache/subdomains.txt"):
+            os.remove("cache/subdomains.txt")
+        if os.path.exists("cache/longest_page.txt"):
+            os.remove("cache/longest_page.txt")
+        if os.path.exists("cache/visited_urls.txt"):
+            os.remove("cache/visited_urls.txt")
+        if os.path.exists("cache/word_frequencies.txt"):
+            os.remove("cache/word_frequencies.txt")
     # Read configuration from the config file
     cparser = ConfigParser()
     cparser.read(config_file)

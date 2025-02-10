@@ -150,94 +150,92 @@ def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links]
 
-def extract_next_links(url, resp):
-    # Implementation required.
-    # url: the URL that was used to get the page
-    # resp.url: the actual url of the page
-    # resp.status: the status code returned by the server. 200 is OK, you got the page. Other numbers mean that there was some kind of problem.
-    # resp.error: when status is not 200, you can check the error here, if needed.
-    # resp.raw_response: this is where the page actually is. More specifically, the raw_response has two parts:
-    #         resp.raw_response.url: the url, again
-    #         resp.raw_response.content: the content of the page!
-    # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
+def process_page_text(soup):
+    """Extract and process text content from the page"""
+    text = soup.get_text()
+    words = re.findall(r'\w+', text)
+    return text, words
 
-    # Check if the response is valid
+def filter_words(words):
+    """Filter words to get valid English words"""
+    filtered_words = [word.lower() for word in words if word.lower() not in stop_words]
+    english_word_set = set(nltk_words.words())
+    english_words = [word for word in filtered_words if word.lower() in english_word_set and len(word) > 1]
+    return english_words
+
+def update_longest_page(url, word_count):
+    """Update the longest page if current page is longer"""
+    global longest_page
+    if word_count > longest_page['word_count']:
+        longest_page = {
+            'url': url,
+            'word_count': word_count
+        }
+
+def is_trap_url(url):
+    """Check if URL is likely a trap"""
+    parsed_url = urlparse(url)
+    query_params = parsed_url.query.split('&')
+    if len(query_params) > 2:
+        return True
+    if re.search(r'(share=|eventDisplay=|ical=|~cs224|do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|revisions|export_code|media|upload|search=)', url, re.IGNORECASE):
+        return True
+    if re.search(r'\d{4}/\d{2}/\d{2}', url):
+        return True
+    if re.search(r'\d{4}-\d{2}-\d{2}', url):
+        return True
+    if re.search(r'\d{4}-\d{2}', url):
+        return True
+    return False
+
+def process_link(url, href):
+    """Process individual link and return valid URL if any"""
+    full_url = urljoin(url, href)
+    parsed_url = urlparse(full_url)
+    defragmented_url = parsed_url._replace(fragment='').geturl()
+    
+    if defragmented_url in visited_urls or is_trap_url(defragmented_url) or not is_valid(defragmented_url):
+        return None
+    
+    visited_urls.add(defragmented_url)
+    with open('cache/visited_urls.txt', 'a') as f:
+        f.write(json.dumps(defragmented_url) + '\n')
+    
+    if 'ics.uci.edu' in parsed_url.netloc:
+        subdomain = parsed_url.scheme + '://' + parsed_url.netloc
+        subdomains[subdomain] += 1
+    
+    return defragmented_url
+
+def extract_next_links(url, resp):
+    """Main function to extract links from a page"""
     if resp.status != 200 or not resp.raw_response.content.strip():
         return []
     
     soup = BeautifulSoup(resp.raw_response.content, features='lxml')
-    # Get text content
-    text = soup.get_text()
-    words = re.findall(r'\w+', text)
-    word_count = len(words)
+    text, words = process_page_text(soup)
     
-    # Filter out pages with very little textual content
-    if word_count < 50:  # Arbitrary threshold for minimum word count
+    if len(words) < 50:
         print(f"Page with little content: {url}")
         return []
     
-    # Filter out stop words
-    filtered_words = [word.lower() for word in words if word.lower() not in stop_words]
-    # Filter out non-English words
-    english_word_set = set(nltk_words.words())
-    english_words = [word for word in filtered_words if word.lower() in english_word_set and len(word) > 1]
+    english_words = filter_words(words)
     word_counter.update(english_words)
     
-    # Compute shingles and hash for the current page
     page_hash = compute_similarity_hash(text)
-
-    # Check for similar pages
     for existing_hash in page_hashes:
         if are_pages_similar(page_hash, existing_hash):
             print(f"Similar page detected: {url}")
             return []
     page_hashes.add(page_hash)
     
-    global longest_page
-    if len(english_words) > longest_page['word_count']:
-        longest_page = {
-            'url': url,
-            'word_count': word_count
-        }
+    update_longest_page(url, len(words))
     
-    def is_trap_url(url):
-        parsed_url = urlparse(url)
-        query_params = parsed_url.query.split('&')
-        if len(query_params) > 2:  # Arbitrary threshold for query parameters
-            return True
-        if re.search(r'(share=|eventDisplay=|ical=|~cs224|do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|revisions|export_code|media|upload|search=)', url, re.IGNORECASE):
-            return True
-        # Check for date patterns in the URL
-        if re.search(r'\d{4}/\d{2}/\d{2}', url):
-            return True
-        # Check for day-by-day patterns in the URL
-        if re.search(r'\d{4}-\d{2}-\d{2}', url):
-            return True
-        # Check for month-by-month patterns in the URL
-        if re.search(r'\d{4}-\d{2}', url):
-            return True
-        return False
-
     links = []
     for a_tag in soup.find_all('a', href=True):
-        href = a_tag['href']
-        full_url = urljoin(url, href)
-        parsed_url = urlparse(full_url)
-        defragmented_url = parsed_url._replace(fragment='').geturl()
-        
-        # Check for infinite traps by detecting repeated URL patterns
-        if defragmented_url in visited_urls or is_trap_url(defragmented_url) or not is_valid(defragmented_url):
-            continue
-        visited_urls.add(defragmented_url)
-        with open('cache/visited_urls.txt', 'a') as f:
-            f.write(json.dumps(defragmented_url) + '\n')
-        
-        # Track subdomains
-        if 'ics.uci.edu' in parsed_url.netloc:
-            subdomain = parsed_url.scheme + '://' + parsed_url.netloc
-            subdomains[subdomain] += 1
-        
-        links.append(defragmented_url)
+        processed_link = process_link(url, a_tag['href'])
+        if processed_link:
+            links.append(processed_link)
     
     save_all()
     return links

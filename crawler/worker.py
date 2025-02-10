@@ -20,22 +20,13 @@ class Worker(Thread):
 
     def dump_report(self):
         scraper.save_all()
-        with open('report.txt', 'a') as f:
-            f.write(f"Total pages: {scraper.get_unique_pages_count()}\n")
-            f.write(f"Longest page: {scraper.longest_page['url']} with {scraper.longest_page['word_count']} words\n")
-            f.write("Top 50 words:\n")
-            for word, count in scraper.get_top_50_words():
-                f.write(f"{word}: {count}\n")
-            f.write("Subdomains in ics.uci.edu:\n")
-            for subdomain, count in scraper.get_subdomains_info().items():
-                f.write(f"{subdomain}: {count}\n")
         
     def run(self):
         try:
             while True:
                 tbd_url = self.frontier.get_tbd_url()
                 if not tbd_url:
-                    self.dump_report()
+                    scraper.save_all()
                     self.logger.info("Frontier is empty. Stopping Crawler.")
                     break
                 resp = download(tbd_url, self.config, self.logger)
@@ -48,6 +39,6 @@ class Worker(Thread):
                 self.frontier.mark_url_complete(tbd_url)
                 time.sleep(self.config.time_delay)
         except Exception as e:
-            self.dump_report()
+            scraper.save_all()
             self.logger.exception(e)
             raise e

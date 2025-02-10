@@ -163,13 +163,13 @@ def filter_words(words):
     english_words = [word for word in filtered_words if word.lower() in english_word_set and len(word) > 1]
     return english_words
 
-def update_longest_page(url, word_count):
-    """Update the longest page if current page is longer"""
+def update_longest_page(url, english_word_count):
+    """Update the longest page if current page has more English words"""
     global longest_page
-    if word_count > longest_page['word_count']:
+    if english_word_count > longest_page['word_count']:
         longest_page = {
             'url': url,
-            'word_count': word_count
+            'word_count': english_word_count
         }
 
 def is_trap_url(url):
@@ -178,7 +178,7 @@ def is_trap_url(url):
     query_params = parsed_url.query.split('&')
     if len(query_params) > 2:
         return True
-    if re.search(r'(share=|eventDisplay=|ical=|~cs224|do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|revisions|export_code|media|upload|search=)', url, re.IGNORECASE):
+    if re.search(r'(share=|eventDisplay=|ical=|~cs224|do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|aistats|revisions|export_code|media|upload|search=)', url, re.IGNORECASE):
         return True
     if re.search(r'\d{4}/\d{2}/\d{2}', url):
         return True
@@ -229,7 +229,7 @@ def extract_next_links(url, resp):
             return []
     page_hashes.add(page_hash)
     
-    update_longest_page(url, len(words))
+    update_longest_page(url, len(english_words))
     
     links = []
     for a_tag in soup.find_all('a', href=True):

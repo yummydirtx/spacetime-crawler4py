@@ -15,13 +15,13 @@ class Worker(Thread):
         # basic check for requests in scraper
         assert {getsource(scraper).find(req) for req in {"from requests import", "import requests"}} == {-1}, "Do not use requests in scraper.py"
         assert {getsource(scraper).find(req) for req in {"from urllib.request import", "import urllib.request"}} == {-1}, "Do not use urllib.request in scraper.py"
-        scraper.load_all()
         super().__init__(daemon=True)
 
     def dump_report(self):
         scraper.save_all()
         
     def run(self):
+        scraper.load_all()
         try:
             while True:
                 tbd_url = self.frontier.get_tbd_url()

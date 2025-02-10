@@ -22,6 +22,8 @@ def main(config_file, restart):
             os.remove("cache/visited_urls.txt")
         if os.path.exists("cache/word_frequencies.txt"):
             os.remove("cache/word_frequencies.txt")
+        if os.path.exists("cache/exact_page_hashes.txt"):
+            os.remove("cache/exact_page_hashes.txt")
     # Read configuration from the config file
     cparser = ConfigParser()
     cparser.read(config_file)

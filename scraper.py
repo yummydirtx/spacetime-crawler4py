@@ -4,6 +4,11 @@ from bs4 import BeautifulSoup
 from collections import Counter
 from stopwords import stop_words
 import json
+import nltk
+import lxml
+from nltk.corpus import words as nltk_words
+
+nltk.download('words')
 
 # Set to keep track of visited URLs to detect traps
 visited_urls = set()
@@ -28,6 +33,7 @@ def save_all():
     save_subdomains()
     save_page_hashes()
     save_word_frequencies()
+    dump_report()
 
 def load_all():
     load_longest_page()
@@ -40,6 +46,17 @@ def load_all():
     print("loaded visited urls")
     load_word_frequencies()
     print("loaded word frequencies")
+
+def dump_report():
+    with open('report.txt', 'w') as f:
+            f.write(f"Total pages: {get_unique_pages_count()}\n")
+            f.write(f"Longest page: {longest_page['url']} with {longest_page['word_count']} words\n")
+            f.write("Top 50 words:\n")
+            for word, count in get_top_50_words():
+                f.write(f"{word}: {count}\n")
+            f.write("Subdomains in ics.uci.edu:\n")
+            for subdomain, count in get_subdomains_info().items():
+                f.write(f"{subdomain}: {count}\n")
 
 def save_word_frequencies():
     # Save the entire Counter to a file in JSON format
@@ -148,7 +165,8 @@ def extract_next_links(url, resp):
     if resp.status != 200 or not resp.raw_response.content.strip():
         return []
     
-    soup = BeautifulSoup(resp.raw_response.content, 'lxml')
+    soup = BeautifulSoup(resp.raw_response.content, features='lxml')
+    # Get text content
     text = soup.get_text()
     words = re.findall(r'\w+', text)
     word_count = len(words)
@@ -160,7 +178,10 @@ def extract_next_links(url, resp):
     
     # Filter out stop words
     filtered_words = [word.lower() for word in words if word.lower() not in stop_words]
-    word_counter.update(filtered_words)
+    # Filter out non-English words
+    english_word_set = set(nltk_words.words())
+    english_words = [word for word in filtered_words if word.lower() in english_word_set and len(word) > 1]
+    word_counter.update(english_words)
     
     # Compute shingles and hash for the current page
     page_hash = compute_similarity_hash(text)
@@ -173,7 +194,7 @@ def extract_next_links(url, resp):
     page_hashes.add(page_hash)
     
     global longest_page
-    if word_count > longest_page['word_count']:
+    if len(english_words) > longest_page['word_count']:
         longest_page = {
             'url': url,
             'word_count': word_count
@@ -184,7 +205,7 @@ def extract_next_links(url, resp):
         query_params = parsed_url.query.split('&')
         if len(query_params) > 2:  # Arbitrary threshold for query parameters
             return True
-        if re.search(r'(do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|revisions|export_code|media|upload|search=)', url, re.IGNORECASE):
+        if re.search(r'(share=|eventDisplay=|ical=|~cs224|do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|revisions|export_code|media|upload|search=)', url, re.IGNORECASE):
             return True
         # Check for date patterns in the URL
         if re.search(r'\d{4}/\d{2}/\d{2}', url):
@@ -209,7 +230,7 @@ def extract_next_links(url, resp):
             continue
         visited_urls.add(defragmented_url)
         with open('visited_urls.txt', 'a') as f:
-            json.dump(defragmented_url, f)
+            f.write(json.dumps(defragmented_url) + '\n')
         
         # Track subdomains
         if 'ics.uci.edu' in parsed_url.netloc:
@@ -218,6 +239,7 @@ def extract_next_links(url, resp):
         
         links.append(defragmented_url)
     
+    save_all()
     return links
 
 def is_valid(url):
@@ -232,8 +254,8 @@ def is_valid(url):
             return False
         #print(parsed)
         return not re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico"
-            + r"|png|tiff?|mid|mp2|mp3|mp4"
+            r".*\.(css|js|bmp|gif|jpe?g|ico|sql|conf"
+            + r"|png|tiff?|mid|mp2|mp3|mp4|bam"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"

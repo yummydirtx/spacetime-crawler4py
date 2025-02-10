@@ -25,6 +25,8 @@ subdomains = Counter()
 # Dictionary to keep track of page hashes to detect exact duplicates
 page_hashes = set()
 
+MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
+
 
 def save_all():
     save_longest_page()
@@ -253,9 +255,20 @@ def process_link(url, href):
     return defragmented_url
 
 
+def is_large_file(resp):
+    content_length = resp.raw_response.headers.get('Content-Length')
+    if content_length and int(content_length) > MAX_CONTENT_LENGTH:
+        return True
+    return False
+
+
 def extract_next_links(url, resp):
     """Main function to extract links from a page"""
     if resp.status != 200 or not resp.raw_response.content.strip():
+        return []
+
+    if is_large_file(resp):
+        print(f"Skipping large file: {url}")
         return []
 
     soup = BeautifulSoup(resp.raw_response.content, features="lxml")
@@ -266,6 +279,9 @@ def extract_next_links(url, resp):
         return []
 
     english_words = filter_words(words)
+    if len(english_words) < len(words) / 4:
+        print(f"Page with less than 25% English words (low textual content): {url}")
+        return []
     word_counter.update(english_words)
 
     page_hash = compute_similarity_hash(text)

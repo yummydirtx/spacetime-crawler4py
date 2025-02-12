@@ -11,7 +11,7 @@ from nltk.corpus import words as nltk_words
 nltk.download("words")
 
 # Global variables
-total_pages = 0
+total_pages = int(0)
 
 # Set to keep track of visited URLs to detect traps
 visited_urls = set()
@@ -269,7 +269,8 @@ def extract_next_links(url, resp):
     """Main function to extract links from a page"""
     if resp.status != 200 or not resp.raw_response.content.strip():
         return []
-
+    
+    global total_pages
     total_pages += 1
 
     if is_large_file(resp):

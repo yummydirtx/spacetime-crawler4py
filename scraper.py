@@ -10,6 +10,9 @@ from nltk.corpus import words as nltk_words
 
 nltk.download("words")
 
+# Global variables
+total_pages = 0
+
 # Set to keep track of visited URLs to detect traps
 visited_urls = set()
 
@@ -37,6 +40,7 @@ def save_all():
     save_page_hashes()
     save_word_frequencies()
     save_exact_page_hashes()
+    save_total_pages()
     dump_report()
 
 
@@ -52,6 +56,19 @@ def load_all():
     load_word_frequencies()
     print("loaded word frequencies")
     load_exact_page_hashes()
+    load_total_pages()
+
+def save_total_pages():
+    with open("cache/total_pages.txt", "w") as f:
+        f.write(str(total_pages))
+
+def load_total_pages():
+    try:
+        with open("cache/total_pages.txt", "r") as f:
+            global total_pages
+            total_pages = int(f.read().strip())
+    except FileNotFoundError:
+        pass
 
 
 def dump_report():
@@ -204,16 +221,11 @@ def is_trap_url(url):
     if len(query_params) > 2:
         return True
     if re.search(
-        r"(share=|eventDisplay=|ical=|~cs224|do=|action=|login|logout|register|signup|edit|delete|update|create|backlink|aistats|revisions|format=|export_code|media|upload|search=)",
+        r"(share=|eventDisplay=|ical=|~cs224|do=|action=|login|logout|register|signup|edit" +
+        r"|delete|update|create|backlink|aistats|revisions|format=|export_code|media|upload|search=|from=)",
         url,
         re.IGNORECASE,
     ):
-        return True
-    if re.search(r"\d{4}/\d{2}/\d{2}", url):
-        return True
-    if re.search(r"\d{4}-\d{2}-\d{2}", url):
-        return True
-    if re.search(r"\d{4}-\d{2}", url):
         return True
     return False
 
@@ -224,7 +236,10 @@ def process_link(url, href):
     parsed_url = urlparse(full_url)
     defragmented_url = parsed_url._replace(fragment="").geturl()
     defragmented_url = normalize_url(defragmented_url)
-
+    # Filter out paths with /event(s)/ followed by YYYY-MM-DD format dates or date query parameters
+    if (re.search(r'/(events|event)/\d{4}-\d{2}-\d{2}', parsed_url.path) or
+        re.search(r'tribe-bar-date=\d{4}-\d{2}-\d{2}', parsed_url.query)):
+        return None
     if (
         defragmented_url in visited_urls
         or is_trap_url(defragmented_url)
@@ -255,6 +270,8 @@ def extract_next_links(url, resp):
     if resp.status != 200 or not resp.raw_response.content.strip():
         return []
 
+    total_pages += 1
+
     if is_large_file(resp):
         print(f"Skipping large file: {url}")
         return []
@@ -262,22 +279,19 @@ def extract_next_links(url, resp):
     soup = BeautifulSoup(resp.raw_response.content, features="lxml")
     text, words = process_page_text(soup)
 
-    if len(words) < 50:
+    english_words = filter_words(words)
+    if len(english_words) < 50:
         print(f"Page with little content: {url}")
         return []
-
-    english_words = filter_words(words)
     if len(english_words) < len(words) / 4:
         print(f"Page with less than 25% English words (low textual content): {url}")
         return []
-    word_counter.update(english_words)
 
     # Check for exact duplicate using hash
     text_hash = hash(text)
     if text_hash in exact_page_hashes:
         print(f"Exact duplicate page detected: {url}")
         return []
-    exact_page_hashes.add(text_hash)
 
     page_hash = compute_similarity_hash(text)
     for existing_hash in page_hashes:
@@ -285,6 +299,8 @@ def extract_next_links(url, resp):
             print(f"Similar page detected: {url}")
             return []
     page_hashes.add(page_hash)
+    word_counter.update(english_words)
+    exact_page_hashes.add(text_hash)
 
     update_longest_page(url, len(english_words))
 
@@ -346,7 +362,7 @@ def load_word_frequencies():
 
 
 def get_unique_pages_count():
-    return len(visited_urls)
+    return total_pages
 
 
 def get_subdomains_info():

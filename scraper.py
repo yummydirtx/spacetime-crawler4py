@@ -82,7 +82,7 @@ def dump_report():
             f.write(f"{word}: {count}\n")
         f.write("Subdomains in ics.uci.edu:\n")
         for subdomain, count in get_subdomains_info().items():
-            f.write(f"{subdomain}: {count}\n")
+            f.write(f"{subdomain}, {count}\n")
 
 
 def save_word_frequencies():
@@ -251,10 +251,6 @@ def process_link(url, href):
     with open("cache/visited_urls.txt", "a") as f:
         f.write(json.dumps(defragmented_url) + "\n")
 
-    if "ics.uci.edu" in parsed_url.netloc:
-        subdomain = parsed_url.scheme + "://" + parsed_url.netloc
-        subdomains[subdomain] += 1
-
     return defragmented_url
 
 
@@ -272,6 +268,11 @@ def extract_next_links(url, resp):
     
     global total_pages
     total_pages += 1
+
+    parsed_url = urlparse(url)
+    if "ics.uci.edu" in parsed_url.netloc and "informatics.uci.edu" not in parsed_url.netloc:
+        subdomain = parsed_url.scheme + "://" + parsed_url.netloc
+        subdomains[subdomain] += 1
 
     if is_large_file(resp):
         print(f"Skipping large file: {url}")
